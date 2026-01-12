@@ -159,7 +159,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📧 Contact
 
-Created by [Vinesh](https://thevinesh.com)
+Created by [Vinesh](https://thevinesh.com) and his AIs
 
 ---
 
