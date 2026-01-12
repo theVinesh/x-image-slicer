@@ -262,7 +262,15 @@ export default function App() {
       <footer className="border-t border-x-border py-6">
         <div className="max-w-5xl mx-auto px-4 text-center space-y-2">
           <p className="text-x-secondary text-sm">
-            100% client-side • No uploads to any server • Your images stay private
+            <a 
+              href="https://github.com/theVinesh/x-image-slicer" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-x-blue hover:text-x-blue-hover transition-colors underline"
+            >
+              100% open source
+            </a>
+            {' '}• 100% client-side • No uploads to any server • Your images stay private
           </p>
           <p className="text-x-secondary text-sm">
             Prompted into existence by{' '}
