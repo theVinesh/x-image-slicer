@@ -92,7 +92,7 @@ export default function DownloadButton({
           </li>
           <li className="flex gap-2">
             <span className={`font-bold ${isPortrait ? 'text-purple-400' : 'text-x-blue'}`}>5.</span>
-            <span>Post and watch the magic! ✨</span>
+            <span>Post!</span>
           </li>
         </ol>
 
@@ -143,17 +143,6 @@ export default function DownloadButton({
               </p>
             </div>
           </div>
-        </div>
-
-        {/* Mode-specific tip */}
-        <div className={`mt-3 p-2 rounded text-xs ${
-          isPortrait ? 'bg-purple-500/20 text-purple-300' : 'bg-x-blue/20 text-blue-300'
-        }`}>
-          {isPortrait ? (
-            <p>💡 <strong>Pro tip:</strong> Add a caption like "Swipe to see the full picture 👀" to encourage engagement!</p>
-          ) : (
-            <p>💡 <strong>Pro tip:</strong> The seamless effect works best with landscape photos or panoramas!</p>
-          )}
         </div>
       </div>
     </div>

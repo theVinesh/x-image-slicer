@@ -59,7 +59,6 @@ The 4 images are horizontal strips:
 When someone swipes through them on X, they stack to form
 your complete portrait photo. It's like a vertical puzzle!
 
-PRO TIP: Add a caption like "Swipe to see the full picture 👀"
 ` : `
 LANDSCAPE MODE - HOW IT WORKS:
 ------------------------------
@@ -73,7 +72,6 @@ The 4 images are quadrants:
 In the timeline, they tile together perfectly.
 When tapped, each image reveals more content above/below.
 
-PRO TIP: Works best with wide landscape photos or panoramas!
 `}
 TROUBLESHOOTING:
 ----------------
@@ -82,7 +80,7 @@ TROUBLESHOOTING:
 • Effect not working? Make sure you uploaded exactly 4 images
 
 Created with X Image Slicer
-https://github.com/your-username/x-image-slicer
+https://github.com/theVinesh/x-image-slicer
 `;
 
   zip.file('README.txt', readme);
