@@ -163,4 +163,6 @@ Created by [Vinesh](https://thevinesh.com) and his AIs
 
 ---
 
+100% client-side • No uploads to any server • Your images stay private • [100% open source](https://github.com/theVinesh/x-image-slicer)
+
 ⭐ If you find this tool useful, please star the repository!
