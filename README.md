@@ -30,7 +30,7 @@ A free, privacy-first web tool to create viral grid posts for X (Twitter). Split
 ## 🚀 Quick Start
 
 ### Online (Recommended)
-Visit the live site: [Coming Soon - Deploy to Cloudflare Pages]
+Visit the live site: https://github.com/theVinesh/x-image-slicer
 
 ### Local Development
 
