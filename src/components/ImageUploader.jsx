@@ -129,16 +129,6 @@ export default function ImageUploader({ onImageSelected }) {
           </button>
         </div>
       </div>
-
-      {/* Tips */}
-      <div className="mt-6 p-4 rounded-xl bg-x-gray/50 border border-x-border">
-        <h3 className="text-sm font-semibold text-x-text mb-2">💡 Tips for best results:</h3>
-        <ul className="text-sm text-x-secondary space-y-1">
-          <li>• Use high-resolution images (1920×1080 or larger)</li>
-          <li>• Landscape or panoramic images work best</li>
-          <li>• The 16:9 crop will become the seamless timeline preview</li>
-        </ul>
-      </div>
     </div>
   );
 }

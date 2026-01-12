@@ -1,11 +1,20 @@
 /**
  * Core image slicing logic for X/Twitter 4-image grid posts
+ * 
+ * X's 4-image grid behavior:
+ * - Images uploaded in order 1,2,3,4 appear as:
+ *   [1][2]
+ *   [3][4]
+ * - When opened, user swipes through: 1 → 2 → 3 → 4
+ * - Each cell in the grid is cropped to fit (roughly 1:1 or 4:5)
+ * 
+ * Two modes:
+ * 1. LANDSCAPE (16:9): Splits into quadrants for seamless panorama
+ * 2. PORTRAIT (9:16): Splits into horizontal strips for stacked reveal
  */
 
 /**
  * Creates an image element from a source URL
- * @param {string} src - Image source URL
- * @returns {Promise<HTMLImageElement>}
  */
 export const loadImage = (src) => {
   return new Promise((resolve, reject) => {
@@ -18,12 +27,16 @@ export const loadImage = (src) => {
 };
 
 /**
- * Gets the cropped image data based on crop parameters
- * @param {string} imageSrc - Source image URL
- * @param {Object} pixelCrop - Crop coordinates {x, y, width, height}
- * @returns {Promise<ImageData>}
+ * Detects if the crop area is portrait or landscape
  */
-export const getCroppedImg = async (imageSrc, pixelCrop) => {
+export const isPortraitCrop = (pixelCrop) => {
+  return pixelCrop.height > pixelCrop.width;
+};
+
+/**
+ * Gets the cropped image as a canvas
+ */
+export const getCroppedCanvas = async (imageSrc, pixelCrop) => {
   const image = await loadImage(imageSrc);
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -47,21 +60,26 @@ export const getCroppedImg = async (imageSrc, pixelCrop) => {
 };
 
 /**
- * Slices a cropped canvas into 4 quadrants (basic mode)
- * @param {HTMLCanvasElement} croppedCanvas - The cropped 16:9 image canvas
- * @returns {Promise<Blob[]>} - Array of 4 image blobs [TL, TR, BL, BR]
+ * LANDSCAPE MODE: Slice into 4 quadrants
+ * Creates seamless 2×2 grid on X timeline
+ * 
+ * Input: 16:9 crop
+ * Output: 4 images arranged as quadrants
+ * 
+ * [TL][TR]  →  Upload order: 1,2,3,4
+ * [BL][BR]
  */
-export const sliceIntoQuadrants = async (croppedCanvas) => {
+export const sliceLandscapeQuadrants = async (croppedCanvas) => {
   const width = croppedCanvas.width;
   const height = croppedCanvas.height;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
 
   const quadrants = [
-    { x: 0, y: 0, w: halfWidth, h: halfHeight },           // Top-Left
-    { x: halfWidth, y: 0, w: halfWidth, h: halfHeight },   // Top-Right
-    { x: 0, y: halfHeight, w: halfWidth, h: halfHeight },  // Bottom-Left
-    { x: halfWidth, y: halfHeight, w: halfWidth, h: halfHeight }, // Bottom-Right
+    { x: 0, y: 0, w: halfWidth, h: halfHeight },           // 1: Top-Left
+    { x: halfWidth, y: 0, w: halfWidth, h: halfHeight },   // 2: Top-Right
+    { x: 0, y: halfHeight, w: halfWidth, h: halfHeight },  // 3: Bottom-Left
+    { x: halfWidth, y: halfHeight, w: halfWidth, h: halfHeight }, // 4: Bottom-Right
   ];
 
   const blobs = await Promise.all(
@@ -87,22 +105,16 @@ export const sliceIntoQuadrants = async (croppedCanvas) => {
 };
 
 /**
- * Creates vertical reveal images from a cropped canvas
- * Each quadrant is placed at the center of a taller canvas
- * X will center-crop these in the grid, showing the seamless preview
- * When opened, the full vertical image is revealed
- * 
- * @param {HTMLCanvasElement} croppedCanvas - The cropped 16:9 image canvas
- * @param {string} originalImageSrc - Original image source for extended content
- * @param {Object} pixelCrop - Original crop coordinates
- * @param {number} verticalRatio - Height multiplier for vertical canvas (default 2.5)
- * @returns {Promise<Blob[]>} - Array of 4 vertical image blobs
+ * LANDSCAPE MODE WITH VERTICAL EXTENSION
+ * Same as quadrants but each is made taller for "reveal" effect
+ * X center-crops in grid, showing seamless preview
+ * When opened, full tall image is revealed
  */
-export const sliceVerticalReveal = async (
+export const sliceLandscapeWithReveal = async (
   croppedCanvas,
   originalImageSrc,
   pixelCrop,
-  verticalRatio = 2.5
+  verticalMultiplier = 2.5
 ) => {
   const image = await loadImage(originalImageSrc);
   
@@ -111,56 +123,47 @@ export const sliceVerticalReveal = async (
   const halfWidth = cropWidth / 2;
   const halfHeight = cropHeight / 2;
 
-  // Output canvas dimensions - each quadrant becomes a tall vertical image
+  // Output: each quadrant becomes a tall vertical image
   const outputWidth = halfWidth;
-  const outputHeight = halfHeight * verticalRatio;
+  const outputHeight = halfHeight * verticalMultiplier;
   
-  // How much extra height we're adding above and below
   const extraHeight = (outputHeight - halfHeight) / 2;
-  
-  // Scale factor between crop canvas and original image
   const scaleX = pixelCrop.width / cropWidth;
   const scaleY = pixelCrop.height / cropHeight;
 
-  const quadrantPositions = [
-    { cropX: 0, cropY: 0 },                    // Top-Left
-    { cropX: halfWidth, cropY: 0 },            // Top-Right
-    { cropX: 0, cropY: halfHeight },           // Bottom-Left
-    { cropX: halfWidth, cropY: halfHeight },   // Bottom-Right
+  const positions = [
+    { cropX: 0, cropY: 0 },                    // 1: Top-Left
+    { cropX: halfWidth, cropY: 0 },            // 2: Top-Right
+    { cropX: 0, cropY: halfHeight },           // 3: Bottom-Left
+    { cropX: halfWidth, cropY: halfHeight },   // 4: Bottom-Right
   ];
 
   const blobs = await Promise.all(
-    quadrantPositions.map(async (pos, index) => {
+    positions.map(async (pos) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = outputWidth;
       canvas.height = outputHeight;
 
-      // Fill with black background
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, outputWidth, outputHeight);
 
-      // Calculate the source region in the original image
       const srcX = pixelCrop.x + (pos.cropX * scaleX);
       const srcY = pixelCrop.y + (pos.cropY * scaleY);
       const srcW = halfWidth * scaleX;
       const srcH = halfHeight * scaleY;
 
-      // Calculate extended source region (with content above and below)
       const extraSrcHeight = extraHeight * scaleY;
       const extendedSrcY = srcY - extraSrcHeight;
       const extendedSrcH = srcH + (extraSrcHeight * 2);
 
-      // Calculate how much of the extended region is within the image bounds
       const clampedSrcY = Math.max(0, extendedSrcY);
       const clampedSrcBottom = Math.min(image.height, extendedSrcY + extendedSrcH);
       const clampedSrcH = clampedSrcBottom - clampedSrcY;
 
-      // Calculate destination offset based on clamped source
       const destYOffset = (clampedSrcY - extendedSrcY) / scaleY;
       const destH = clampedSrcH / scaleY;
 
-      // Draw the extended image content
       if (clampedSrcH > 0) {
         ctx.drawImage(
           image,
@@ -169,9 +172,8 @@ export const sliceVerticalReveal = async (
         );
       }
 
-      // Add subtle gradient overlays at top/bottom if content was clipped
+      // Fade edges if clipped
       if (clampedSrcY > extendedSrcY) {
-        // Top was clipped - add fade
         const gradient = ctx.createLinearGradient(0, 0, 0, extraHeight);
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -180,7 +182,6 @@ export const sliceVerticalReveal = async (
       }
 
       if (clampedSrcBottom < extendedSrcY + extendedSrcH) {
-        // Bottom was clipped - add fade
         const gradient = ctx.createLinearGradient(0, outputHeight - extraHeight, 0, outputHeight);
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
@@ -198,26 +199,179 @@ export const sliceVerticalReveal = async (
 };
 
 /**
- * Main function to process an image and create sliced outputs
- * @param {string} imageSrc - Source image URL
- * @param {Object} pixelCrop - Crop coordinates from react-easy-crop
- * @param {boolean} verticalMode - Whether to create vertical reveal images
- * @returns {Promise<Blob[]>} - Array of 4 image blobs ready for download
+ * PORTRAIT MODE: Slice into 4 horizontal strips
+ * 
+ * When uploaded to X as 1,2,3,4:
+ * - Grid shows: [Strip1][Strip2]
+ *               [Strip3][Strip4]
+ * - When swiped: 1→2→3→4 = top→upper→lower→bottom = COMPLETE IMAGE!
+ * 
+ * This is the "stacked reveal" effect - the images reconstruct
+ * the full portrait when viewed in sequence.
+ * 
+ * Input: 9:16 crop (or any portrait)
+ * Output: 4 horizontal strips
  */
-export const processImage = async (imageSrc, pixelCrop, verticalMode = true) => {
-  const croppedCanvas = await getCroppedImg(imageSrc, pixelCrop);
+export const slicePortraitStrips = async (croppedCanvas) => {
+  const width = croppedCanvas.width;
+  const height = croppedCanvas.height;
+  const stripHeight = height / 4;
+
+  // Create 4 horizontal strips from top to bottom
+  // Upload order: 1,2,3,4 maps to grid positions TL,TR,BL,BR
+  // But when swiped, order is 1→2→3→4 which reveals full image!
+  const strips = [
+    { x: 0, y: 0, w: width, h: stripHeight },                    // Strip 1: Top
+    { x: 0, y: stripHeight, w: width, h: stripHeight },          // Strip 2: Upper-middle
+    { x: 0, y: stripHeight * 2, w: width, h: stripHeight },      // Strip 3: Lower-middle
+    { x: 0, y: stripHeight * 3, w: width, h: stripHeight },      // Strip 4: Bottom
+  ];
+
+  const blobs = await Promise.all(
+    strips.map(async (strip) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = strip.w;
+      canvas.height = strip.h;
+
+      ctx.drawImage(
+        croppedCanvas,
+        strip.x, strip.y, strip.w, strip.h,
+        0, 0, strip.w, strip.h
+      );
+
+      return new Promise((resolve) => {
+        canvas.toBlob(resolve, 'image/jpeg', 0.92);
+      });
+    })
+  );
+
+  return blobs;
+};
+
+/**
+ * PORTRAIT MODE WITH EXTENDED HEIGHT
+ * Each strip is made taller to give more reveal content
+ * X will center-crop these in the grid
+ * When swiped, full height is shown
+ */
+export const slicePortraitWithReveal = async (
+  croppedCanvas,
+  originalImageSrc,
+  pixelCrop,
+  heightMultiplier = 1.5
+) => {
+  const image = await loadImage(originalImageSrc);
   
-  if (verticalMode) {
-    return sliceVerticalReveal(croppedCanvas, imageSrc, pixelCrop);
+  const cropWidth = croppedCanvas.width;
+  const cropHeight = croppedCanvas.height;
+  const stripHeight = cropHeight / 4;
+  
+  // Output dimensions: each strip becomes taller
+  const outputWidth = cropWidth;
+  const outputHeight = stripHeight * heightMultiplier;
+  
+  const extraHeight = (outputHeight - stripHeight) / 2;
+  const scaleX = pixelCrop.width / cropWidth;
+  const scaleY = pixelCrop.height / cropHeight;
+
+  const stripPositions = [
+    { cropY: 0 },                    // Strip 1: Top
+    { cropY: stripHeight },          // Strip 2: Upper-middle
+    { cropY: stripHeight * 2 },      // Strip 3: Lower-middle
+    { cropY: stripHeight * 3 },      // Strip 4: Bottom
+  ];
+
+  const blobs = await Promise.all(
+    stripPositions.map(async (pos) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, outputWidth, outputHeight);
+
+      const srcX = pixelCrop.x;
+      const srcY = pixelCrop.y + (pos.cropY * scaleY);
+      const srcW = cropWidth * scaleX;
+      const srcH = stripHeight * scaleY;
+
+      const extraSrcHeight = extraHeight * scaleY;
+      const extendedSrcY = srcY - extraSrcHeight;
+      const extendedSrcH = srcH + (extraSrcHeight * 2);
+
+      const clampedSrcY = Math.max(0, extendedSrcY);
+      const clampedSrcBottom = Math.min(image.height, extendedSrcY + extendedSrcH);
+      const clampedSrcH = clampedSrcBottom - clampedSrcY;
+
+      const destYOffset = (clampedSrcY - extendedSrcY) / scaleY;
+      const destH = clampedSrcH / scaleY;
+
+      if (clampedSrcH > 0) {
+        ctx.drawImage(
+          image,
+          srcX, clampedSrcY, srcW, clampedSrcH,
+          0, destYOffset, outputWidth, destH
+        );
+      }
+
+      return new Promise((resolve) => {
+        canvas.toBlob(resolve, 'image/jpeg', 0.92);
+      });
+    })
+  );
+
+  return blobs;
+};
+
+/**
+ * Main processing function
+ * Automatically detects orientation and applies appropriate slicing
+ */
+export const processImage = async (imageSrc, pixelCrop, extendedReveal = true) => {
+  const croppedCanvas = await getCroppedCanvas(imageSrc, pixelCrop);
+  const isPortrait = isPortraitCrop(pixelCrop);
+  
+  if (isPortrait) {
+    // Portrait mode: horizontal strips for stacked reveal
+    if (extendedReveal) {
+      return slicePortraitWithReveal(croppedCanvas, imageSrc, pixelCrop);
+    } else {
+      return slicePortraitStrips(croppedCanvas);
+    }
   } else {
-    return sliceIntoQuadrants(croppedCanvas);
+    // Landscape mode: quadrants for seamless panorama
+    if (extendedReveal) {
+      return sliceLandscapeWithReveal(croppedCanvas, imageSrc, pixelCrop);
+    } else {
+      return sliceLandscapeQuadrants(croppedCanvas);
+    }
   }
 };
 
 /**
+ * Get metadata about the processing mode
+ */
+export const getProcessingMode = (pixelCrop) => {
+  const isPortrait = isPortraitCrop(pixelCrop);
+  return {
+    isPortrait,
+    mode: isPortrait ? 'portrait' : 'landscape',
+    description: isPortrait 
+      ? 'Horizontal strips - swipe to reveal full portrait'
+      : 'Quadrant grid - seamless panorama on timeline',
+    gridPreview: isPortrait
+      ? 'Creative composite (strips in grid)'
+      : 'Seamless panorama',
+    openedView: isPortrait
+      ? 'Swipe 1→2→3→4 reveals complete image'
+      : 'Each quadrant with extended content',
+  };
+};
+
+/**
  * Creates data URLs for preview purposes
- * @param {Blob[]} blobs - Array of image blobs
- * @returns {Promise<string[]>} - Array of data URLs
  */
 export const blobsToDataUrls = async (blobs) => {
   return Promise.all(
