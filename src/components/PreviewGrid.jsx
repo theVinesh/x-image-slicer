@@ -113,25 +113,6 @@ export default function PreviewGrid({
               </div>
             </div>
           </div>
-
-          {/* Mode-specific explanation */}
-          <div className={`mt-4 p-3 rounded-lg ${
-            isPortrait ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-x-blue/10 border border-x-blue/30'
-          }`}>
-            <p className="text-sm text-x-secondary">
-              {isPortrait ? (
-                <>
-                  <span className="text-purple-400 font-semibold">Portrait Mode:</span> The grid shows 4 horizontal strips. 
-                  Tap any image to see how they stack when viewed!
-                </>
-              ) : (
-                <>
-                  <span className="text-x-blue font-semibold">Landscape Mode:</span> The 4 quadrants form a seamless panorama. 
-                  Tap any image to see the extended reveal content.
-                </>
-              )}
-            </p>
-          </div>
         </div>
       ) : (
         /* Opened/Stacked View */
@@ -170,34 +151,6 @@ export default function PreviewGrid({
                 </div>
               ))}
             </div>
-
-            {isPortrait && (
-              <div className="mt-4 text-center">
-                <p className="text-sm text-purple-400 font-medium">
-                  ↑ Swipe through these to see the full portrait! ↑
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Explanation */}
-          <div className={`mt-4 p-3 rounded-lg ${
-            isPortrait ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-x-blue/10 border border-x-blue/30'
-          }`}>
-            <p className="text-sm text-x-secondary">
-              {isPortrait ? (
-                <>
-                  <span className="text-purple-400 font-semibold">The Magic:</span> When a user swipes through 
-                  images 1→2→3→4, the horizontal strips stack to reveal your complete portrait image! 
-                  It's like a vertical puzzle that assembles as they scroll.
-                </>
-              ) : (
-                <>
-                  <span className="text-x-blue font-semibold">Extended Reveal:</span> Each quadrant has extra 
-                  content above and below. The timeline shows the seamless crop, but tapping reveals more!
-                </>
-              )}
-            </p>
           </div>
         </div>
       )}
